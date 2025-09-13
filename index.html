@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FotoVoz - Captura con Comando de Voz</title>
+<style>
+  body {
+    background: #222;
+    color: #eee;
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    text-align: center;
+  }
+  .container {
+    max-width: 700px;
+    margin: auto;
+    background: #333;
+    padding: 15px;
+    border-radius: 8px;
+  }
+  h1 {
+    color: #4cc9f0;
+    margin-bottom: 10px;
+  }
+  video, canvas {
+    width: 100%;
+    max-width: 640px;
+    border-radius: 6px;
+    background: black;
+    margin-bottom: 10px;
+  }
+  button {
+    background: #4cc9f0;
+    border: none;
+    padding: 10px 15px;
+    margin: 5px;
+    border-radius: 5px;
+    color: #222;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  button:disabled {
+    background: #666;
+    cursor: not-allowed;
+    color: #aaa;
+  }
+  .instructions {
+    margin-top: 20px;
+    font-size: 0.9rem;
+    color: #ccc;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>Camaras Del Rancho°</h1>
+    <p>Di "foto" para capturar una imagen o usa el botón manual</p>
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
+    <div>
+      <button id="startBtn">Iniciar Cámara</button>
+      <button id="captureBtn" disabled>Capturar Foto</button>
+      <button id="downloadBtn" disabled>Descargar Foto</button>
+    </div>
+    <div class="instructions">
+      <p>Permite acceso a cámara y micrófono. Di "foto" para capturar.</p>
+    </div>
+  </div>
+
+<script>
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const startBtn = document.getElementById('startBtn');
+  const captureBtn = document.getElementById('captureBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
+
+  let stream = null;
+  let recognition = null;
+  let listening = false;
+
+
+    startBtn.onclick = function() {
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({video:true, audio:false})
+        .then(s => {
+        stream = s;
+        video.srcObject = stream;
+        startBtn.disabled = true;
+        captureBtn.disabled = false;
+        startRecognition();
+        })
+        .catch(e => {
+        alert('Error al acceder a la cámara: ' + e.message);
+        });
+    }else {
+        alert('Tu navegador no soporta getUser Media');
+    }
+    };
+
+  function startRecognition() {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert('Reconocimiento de voz no soportado');
+      return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.lang = 'es-ES';
+    recognition.continuous = true;
+    recognition.interimResults = false;
+
+    recognition.onresult = function(event) {
+      const last = event.results.length - 1;
+      const text = event.results[last][0].transcript.trim().toLowerCase();
+      if (text === 'foto') {
+        takePhoto();
+      }
+    };
+    recognition.onerror = function() {};
+    recognition.onend = function() {
+      if (listening) recognition.start();
+    };
+    recognition.start();
+    listening = true;
+  }
+
+  function takePhoto() {
+    if (!stream) return;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    downloadBtn.disabled = false;
+  }
+
+  captureBtn.onclick = takePhoto;
+
+  downloadBtn.onclick = function() {
+    if (!canvas.width) return;
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/png');
+    link.download = 'foto.png';
+    link.click();
+  };
+</script>
+</body>
+</html>
